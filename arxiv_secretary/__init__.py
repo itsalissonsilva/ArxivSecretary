@@ -1,0 +1,1 @@
+"""arXiv Secretary desktop application."""

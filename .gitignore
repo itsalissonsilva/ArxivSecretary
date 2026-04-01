@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Local app state
+arxiv_secretary.db
+
+# Build outputs
+build/
+build2/
+build3/
+dist/
+dist2/
+dist3/
+
+# Packaging artifacts
+*.spec
+
+# Local editor / OS noise
+.DS_Store
+Thumbs.db
