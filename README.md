@@ -6,7 +6,7 @@ A lightweight desktop GUI for tracking arXiv authors, institution keywords, and 
 
 </div>
 
-arXiv Secretary helps researchers stay on top of the papers that matter to them without living in a browser tab. Build a personal watchlist, review a latest or daily feed, generate AI summaries of new papers, and configure alerts for recurring updates.
+ArXiv Secretary helps researchers stay on top of the papers that matter to them without living in a browser tab. Build a personal watchlist, review a latest or daily feed, generate AI summaries of new papers, and configure alerts for recurring updates.
 
 ---
 <p align="center">
