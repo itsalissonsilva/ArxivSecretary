@@ -12,6 +12,8 @@ build3/
 dist/
 dist2/
 dist3/
+installer-output/
+release/
 
 # Packaging artifacts
 *.spec

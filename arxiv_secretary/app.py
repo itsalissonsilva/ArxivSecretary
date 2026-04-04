@@ -23,6 +23,7 @@ from .alerts import (
 )
 from .ai_summary import DEFAULT_MODELS, generate_daily_summary
 from .models import Paper, WATCH_TYPES, WatchItem
+from .paths import database_path
 from .storage import Storage
 
 
@@ -34,7 +35,7 @@ class ArxivSecretaryApp:
         self.root.minsize(1200, 760)
         self._icon_image: tk.PhotoImage | None = None
 
-        self.storage = Storage(Path.cwd() / "arxiv_secretary.db")
+        self.storage = Storage(database_path())
         self.executor = ThreadPoolExecutor(max_workers=4)
         self.queue: Queue[tuple[str, object]] = Queue()
 

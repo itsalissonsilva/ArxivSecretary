@@ -1,34 +1,72 @@
-# arXiv Secretary
+<div align="center">
 
-A lightweight desktop GUI for tracking arXiv authors, institution keywords, and research topics.
+# ArxivSecretary
+
+A desktop research companion for tracking arXiv authors, topics, and institutions.
+
+</div>
+
+ArxivSecretary helps researchers stay on top of the papers that matter to them without living in a browser tab. Build a personal watchlist, review a latest or daily feed, generate AI summaries of new papers, and configure alerts for recurring updates.
+
+## Highlights
+
+- Track arXiv authors, topics, and institution keywords
+- Review papers in `Latest` and `Daily` feed modes
+- Open abstracts and PDFs directly from the app
+- Generate AI summaries with OpenAI or Anthropic
+- Configure desktop and email alerts
+- Schedule update checks daily, weekly, or monthly
+
+## Screenshots
+
+### Feed
+
+![Feed view](assets/readme/feed.png)
+
+### Watchlist
+
+![Watchlist view](assets/readme/watchlist.png)
 
 ## Features
 
-- Save watch targets locally with SQLite
-- Track three watch types:
-  - `Author`: mapped to arXiv author search
-  - `Topic`: mapped to full-text metadata search
-  - `Institution`: mapped to keyword search against available arXiv metadata
-- Fetch a `Latest` view for your tracked interests
-- Build a `Daily Digest` from papers published in the last 24 hours
-- Generate an `AI Summary` of the daily digest with OpenAI or Anthropic
-- Configure scheduled alerts with daily, weekly, or monthly timing
-- Send desktop pop-up alerts and optional email notifications through SMTP
-- De-duplicate overlapping matches and show which watch targets matched each paper
-- Open the paper abstract page or PDF in your browser
+- Personal watchlists for authors, research topics, and institution-based keyword tracking
+- Feed view that de-duplicates matches across multiple watch targets
+- Paper details panel for abstracts, authors, categories, and quick actions
+- AI Summary tab for turning fresh papers into a concise research brief
+- Alerts tab for recurring update checks and optional SMTP email delivery
+- Windows desktop distribution with packaged builds and installer support
 
-## Run
+## Installation
+
+### Windows executable
+
+Download the latest packaged build from the [GitHub Releases](https://github.com/itsalissonsilva/ArxivSecretary/releases) page.
+
+### From source
 
 ```powershell
 python main.py
 ```
 
-The app stores its data in `arxiv_secretary.db` in the project folder.
+## AI and Alerts
+
+ArxivSecretary supports:
+
+- OpenAI and Anthropic for AI-generated summaries
+- Desktop alert pop-ups
+- SMTP-based email notifications
+
+AI summaries require your own provider API key. Email alerts require your own SMTP configuration.
 
 ## Notes
 
-- arXiv's public API does not provide a structured institution affiliation field. Institution tracking therefore works as a best-effort keyword search over available metadata.
-- The GUI is built with the Python standard library, so no extra packages are required.
-- AI provider keys are stored locally in `arxiv_secretary.db` as plain text.
-- Alert emails use your own SMTP credentials and also store those credentials locally in `arxiv_secretary.db` as plain text.
-- Scheduled alerts run while the app is open. Native OS push notifications are not implemented yet.
+- Institution tracking is implemented as keyword matching because arXiv does not expose structured affiliation data in its public API.
+- Scheduled alerts run while the app is open.
+- arXiv is a trademark of Cornell University and is referenced here only to describe compatibility with the arXiv service.
+
+## Roadmap
+
+- Improved installer and distribution flow
+- Better onboarding for first-time watchlist setup
+- Polished release process for Windows builds
+
