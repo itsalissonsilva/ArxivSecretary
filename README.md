@@ -1,12 +1,12 @@
 <div align="center">
 
-# ArxivSecretary
+# arXiv Secretary
 
-A desktop research companion for tracking arXiv authors, topics, and institutions.
+A lightweight desktop GUI for tracking arXiv authors, institution keywords, and research topics.
 
 </div>
 
-ArxivSecretary helps researchers stay on top of the papers that matter to them without living in a browser tab. Build a personal watchlist, review a latest or daily feed, generate AI summaries of new papers, and configure alerts for recurring updates.
+arXiv Secretary helps researchers stay on top of the papers that matter to them without living in a browser tab. Build a personal watchlist, review a latest or daily feed, generate AI summaries of new papers, and configure alerts for recurring updates.
 
 ## Highlights
 
@@ -19,13 +19,10 @@ ArxivSecretary helps researchers stay on top of the papers that matter to them w
 
 ## Screenshots
 
-### Feed
-
-![Feed view](assets/readme/feed.png)
-
-### Watchlist
-
-![Watchlist view](assets/readme/watchlist.png)
+<p align="center">
+  <img src="assets/readme/feed.png" alt="Feed view" width="48%" />
+  <img src="assets/readme/watchlist.png" alt="Watchlist view" width="48%" />
+</p>
 
 ## Features
 
@@ -69,4 +66,3 @@ AI summaries require your own provider API key. Email alerts require your own SM
 - Improved installer and distribution flow
 - Better onboarding for first-time watchlist setup
 - Polished release process for Windows builds
-
