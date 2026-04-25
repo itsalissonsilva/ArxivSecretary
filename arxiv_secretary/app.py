@@ -6,6 +6,7 @@ from pathlib import Path
 from queue import Empty, Queue
 import re
 import sys
+import traceback
 import tkinter as tk
 from tkinter import messagebox, ttk
 import webbrowser
@@ -23,7 +24,7 @@ from .alerts import (
 )
 from .ai_summary import DEFAULT_MODELS, generate_daily_summary
 from .models import Paper, WATCH_TYPES, WatchItem
-from .paths import database_path
+from .paths import app_data_dir, database_path
 from .storage import Storage
 
 
@@ -122,7 +123,10 @@ class ArxivSecretaryApp:
         self.root.option_add("*Font", "{Segoe UI} 10")
 
         style = ttk.Style()
-        style.theme_use("clam")
+        try:
+            style.theme_use("clam")
+        except tk.TclError:
+            pass
         style.configure(".", background="#f5efe3", foreground="#1f1b16")
         style.configure("TFrame", background="#f5efe3")
         style.configure("Panel.TFrame", background="#fbf7ee")
@@ -1276,6 +1280,43 @@ class ArxivSecretaryApp:
 
 
 def run() -> None:
-    root = tk.Tk()
-    ArxivSecretaryApp(root)
-    root.mainloop()
+    root: tk.Tk | None = None
+    try:
+        root = tk.Tk()
+        ArxivSecretaryApp(root)
+        root.mainloop()
+    except Exception as exc:
+        _write_startup_crash_log(exc)
+        if root is None:
+            try:
+                root = tk.Tk()
+                root.withdraw()
+            except Exception:
+                root = None
+
+        if root is not None:
+            try:
+                messagebox.showerror(
+                    "arXiv Secretary could not start",
+                    "The app hit a startup problem and wrote a crash log to your local app data folder.",
+                )
+            except Exception:
+                pass
+            finally:
+                try:
+                    root.destroy()
+                except Exception:
+                    pass
+        return
+
+
+def _write_startup_crash_log(exc: Exception) -> None:
+    try:
+        log_path = app_data_dir() / "startup-error.log"
+        timestamp = datetime.now().astimezone().isoformat()
+        log_path.write_text(
+            f"[{timestamp}] Startup failure: {exc}\n\n{traceback.format_exc()}",
+            encoding="utf-8",
+        )
+    except Exception:
+        pass

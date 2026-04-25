@@ -4,10 +4,11 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from difflib import SequenceMatcher
 from urllib.parse import quote
-from urllib.request import Request, urlopen
+from urllib.request import Request
 import xml.etree.ElementTree as ET
 
 from .models import Paper, WatchItem
+from .network import open_url
 
 
 ATOM_NS = {"atom": "http://www.w3.org/2005/Atom", "arxiv": "http://arxiv.org/schemas/atom"}
@@ -113,7 +114,7 @@ def _fetch_query(search_query: str, *, max_results: int, timeout: int) -> list[P
         f"&sortBy=submittedDate&sortOrder=descending"
     )
     request = Request(url, headers={"User-Agent": USER_AGENT})
-    with urlopen(request, timeout=timeout) as response:
+    with open_url(request, timeout=timeout) as response:
         content = response.read()
     return parse_feed(content)
 

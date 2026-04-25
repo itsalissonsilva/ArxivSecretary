@@ -4,6 +4,17 @@
 
 A lightweight desktop GUI for tracking arXiv authors, institution keywords, and research topics.
 
+<p align="center">
+  <a href="https://apps.microsoft.com/detail/9NK8KQ5QMNS3?hl=neutral&gl=BR&ocid=pdpshare">
+    <img src="https://img.shields.io/badge/Microsoft%20Store-Available-107C10?style=for-the-badge&logo=microsoft&logoColor=white" alt="Microsoft Store" />
+  </a>
+  <a href="https://github.com/itsalissonsilva/ArxivSecretary/releases">
+    <img src="https://img.shields.io/badge/Releases-Download-1f6feb?style=for-the-badge&logo=github&logoColor=white" alt="GitHub Releases" />
+  </a>
+  <img src="https://img.shields.io/badge/Python-3.14-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.14" />
+  <img src="https://img.shields.io/badge/Platform-Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white" alt="Windows" />
+</p>
+
 </div>
 
 ArXiv Secretary helps researchers stay on top of the papers that matter to them without living in a browser tab. Build a personal watchlist, review a latest or daily feed, generate AI summaries of new papers, and configure alerts for recurring updates.
@@ -35,15 +46,19 @@ ArXiv Secretary helps researchers stay on top of the papers that matter to them 
 
 ## Installation
 
-### Windows executable
-
-Download the latest packaged build from the [GitHub Releases](https://github.com/itsalissonsilva/ArxivSecretary/releases) page.
-
 ### From source
 
 ```powershell
+git clone https://github.com/itsalissonsilva/ArxivSecretary.git
+cd ArxivSecretary
 python main.py
 ```
+
+### Windows executable
+
+Install ArXiv Secretary from the [Microsoft Store](https://apps.microsoft.com/detail/9NK8KQ5QMNS3?hl=neutral&gl=BR&ocid=pdpshare).
+
+If you prefer direct downloads, packaged builds are also available on [GitHub Releases](https://github.com/itsalissonsilva/ArxivSecretary/releases).
 
 ## AI and Alerts
 

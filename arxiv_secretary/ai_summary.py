@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import json
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.request import Request
 
 from .models import Paper
+from .network import open_url
 
 
 DEFAULT_MODELS = {
@@ -141,7 +142,7 @@ def _call_anthropic(*, api_key: str, model: str, prompt: str) -> str:
 
 def _read_json_response(request: Request) -> dict:
     try:
-        with urlopen(request, timeout=60) as response:
+        with open_url(request, timeout=60) as response:
             payload = response.read().decode("utf-8")
     except HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")
