@@ -12,7 +12,10 @@ A lightweight desktop GUI for tracking arXiv authors, institution keywords, and 
     <img src="https://img.shields.io/badge/Releases-Download-1f6feb?style=for-the-badge&logo=github&logoColor=white" alt="GitHub Releases" />
   </a>
   <img src="https://img.shields.io/badge/Python-3.14-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.14" />
-  <img src="https://img.shields.io/badge/Platform-Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white" alt="Windows" />
+  <a href="https://apps.microsoft.com/detail/9NK8KQ5QMNS3?hl=neutral&gl=BR&ocid=pdpshare">
+    <img src="https://img.shields.io/badge/Microsoft%20Store-Available-107C10?style=for-the-badge&logo=microsoft&logoColor=white" alt="Microsoft Store" />
+  </a>
+  <img src="https://img.shields.io/badge/Open%20Source-%E2%99%A5-red?style=for-the-badge" alt="Open Source" />
 </p>
 
 </div>
