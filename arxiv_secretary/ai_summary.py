@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from urllib.error import HTTPError, URLError
+from urllib.parse import quote
 from urllib.request import Request
 
 from .models import Paper
@@ -11,6 +12,13 @@ from .network import open_url
 DEFAULT_MODELS = {
     "openai": "gpt-4.1-mini",
     "anthropic": "claude-3-5-sonnet-latest",
+    "google": "gemini-3.5-flash",
+}
+
+PROVIDER_LABELS = {
+    "openai": "OpenAI",
+    "anthropic": "Anthropic",
+    "google": "Google",
 }
 
 
@@ -27,16 +35,18 @@ def generate_daily_summary(
 
     provider_name = provider.strip().lower()
     if provider_name not in DEFAULT_MODELS:
-        raise ValueError("Choose either OpenAI or Anthropic as the AI provider.")
+        raise ValueError("Choose OpenAI, Anthropic, or Google as the AI provider.")
     if not api_key.strip():
-        raise ValueError(f"Enter a {provider_name.title()} API key first.")
+        raise ValueError(f"Enter a {PROVIDER_LABELS[provider_name]} API key first.")
     if not model.strip():
         raise ValueError("Enter a model name before generating the summary.")
 
     prompt = _build_prompt(papers, daily_days)
     if provider_name == "openai":
         return _call_openai(api_key=api_key.strip(), model=model.strip(), prompt=prompt)
-    return _call_anthropic(api_key=api_key.strip(), model=model.strip(), prompt=prompt)
+    if provider_name == "anthropic":
+        return _call_anthropic(api_key=api_key.strip(), model=model.strip(), prompt=prompt)
+    return _call_google(api_key=api_key.strip(), model=model.strip(), prompt=prompt)
 
 
 def _build_prompt(papers: list[Paper], daily_days: int) -> str:
@@ -138,6 +148,50 @@ def _call_anthropic(*, api_key: str, model: str, prompt: str) -> str:
     if summary:
         return summary
     raise ValueError("Anthropic returned an empty summary.")
+
+
+def _call_google(*, api_key: str, model: str, prompt: str) -> str:
+    payload = {
+        "systemInstruction": {
+            "parts": [
+                {
+                    "text": (
+                        "You are an expert arXiv research secretary. Summarize new papers clearly, "
+                        "highlight what is novel, and help the user decide what to read first."
+                    )
+                }
+            ]
+        },
+        "contents": [
+            {
+                "role": "user",
+                "parts": [{"text": prompt}],
+            }
+        ],
+        "generationConfig": {
+            "temperature": 0.3,
+        },
+    }
+    model_name = model.removeprefix("models/")
+    model_path = quote(model_name, safe="")
+    key = quote(api_key, safe="")
+    request = Request(
+        f"https://generativelanguage.googleapis.com/v1beta/models/{model_path}:generateContent?key={key}",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    response = _read_json_response(request)
+    candidates = response.get("candidates", [])
+    if not candidates:
+        raise ValueError("Google returned no summary candidates.")
+    content = candidates[0].get("content", {})
+    parts = content.get("parts", [])
+    text_parts = [part.get("text", "").strip() for part in parts if isinstance(part, dict)]
+    summary = "\n\n".join(part for part in text_parts if part)
+    if summary:
+        return summary
+    raise ValueError("Google returned an empty summary.")
 
 
 def _read_json_response(request: Request) -> dict:

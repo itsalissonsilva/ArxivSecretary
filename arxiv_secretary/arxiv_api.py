@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from difflib import SequenceMatcher
+from time import sleep
+from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import Request
 import xml.etree.ElementTree as ET
@@ -24,6 +26,8 @@ def build_search_query(item: WatchItem) -> str:
     value = _escape_query_text(item.query)
     if item.kind == "author":
         return f'au:"{value}"'
+    if item.kind == "title":
+        return f'ti:"{value}"'
     return f'all:"{value}"'
 
 
@@ -114,9 +118,27 @@ def _fetch_query(search_query: str, *, max_results: int, timeout: int) -> list[P
         f"&sortBy=submittedDate&sortOrder=descending"
     )
     request = Request(url, headers={"User-Agent": USER_AGENT})
-    with open_url(request, timeout=timeout) as response:
-        content = response.read()
+    content = _read_with_retries(request, timeout=timeout)
     return parse_feed(content)
+
+
+def _read_with_retries(request: Request, *, timeout: int) -> bytes:
+    last_error: Exception | None = None
+    for attempt in range(3):
+        try:
+            with open_url(request, timeout=timeout) as response:
+                return response.read()
+        except HTTPError as exc:
+            if exc.code not in {429, 500, 502, 503, 504}:
+                raise
+            last_error = exc
+        except URLError as exc:
+            last_error = exc
+        if attempt < 2:
+            sleep(2 + attempt * 3)
+    if last_error is not None:
+        raise last_error
+    raise RuntimeError("arXiv returned no response.")
 
 
 def _paper_matches_author_query(paper: Paper, query: str) -> bool:

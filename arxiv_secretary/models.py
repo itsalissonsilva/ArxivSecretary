@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 
-WATCH_TYPES = ("author", "institution", "topic")
+WATCH_TYPES = ("author", "institution", "topic", "title")
 
 
 @dataclass(slots=True)
@@ -13,6 +13,8 @@ class WatchItem:
     label: str
     query: str
     notes: str = ""
+    enabled: bool = True
+    last_search_at: str = ""
 
 
 @dataclass(slots=True)
