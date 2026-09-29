@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import base64
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
+import html
+from io import BytesIO
 from pathlib import Path
 from queue import Empty, Queue
 import re
+import sqlite3
 import sys
 from time import sleep
 import traceback
@@ -29,6 +33,135 @@ from .paths import app_data_dir, database_path
 from .storage import Storage
 
 
+LATEX_SYMBOLS = {
+    "alpha": "α",
+    "beta": "β",
+    "gamma": "γ",
+    "delta": "δ",
+    "epsilon": "ε",
+    "varepsilon": "ϵ",
+    "zeta": "ζ",
+    "eta": "η",
+    "theta": "θ",
+    "vartheta": "ϑ",
+    "iota": "ι",
+    "kappa": "κ",
+    "lambda": "λ",
+    "mu": "μ",
+    "nu": "ν",
+    "xi": "ξ",
+    "pi": "π",
+    "varpi": "ϖ",
+    "rho": "ρ",
+    "varrho": "ϱ",
+    "sigma": "σ",
+    "varsigma": "ς",
+    "tau": "τ",
+    "upsilon": "υ",
+    "phi": "φ",
+    "varphi": "ϕ",
+    "chi": "χ",
+    "psi": "ψ",
+    "omega": "ω",
+    "Gamma": "Γ",
+    "Delta": "Δ",
+    "Theta": "Θ",
+    "Lambda": "Λ",
+    "Xi": "Ξ",
+    "Pi": "Π",
+    "Sigma": "Σ",
+    "Upsilon": "Υ",
+    "Phi": "Φ",
+    "Psi": "Ψ",
+    "Omega": "Ω",
+    "to": "→",
+    "rightarrow": "→",
+    "longrightarrow": "⟶",
+    "leftarrow": "←",
+    "leftrightarrow": "↔",
+    "Rightarrow": "⇒",
+    "Leftarrow": "⇐",
+    "Leftrightarrow": "⇔",
+    "mapsto": "↦",
+    "times": "×",
+    "cdot": "·",
+    "pm": "±",
+    "mp": "∓",
+    "le": "≤",
+    "leq": "≤",
+    "ge": "≥",
+    "geq": "≥",
+    "ne": "≠",
+    "neq": "≠",
+    "approx": "≈",
+    "sim": "∼",
+    "simeq": "≃",
+    "equiv": "≡",
+    "propto": "∝",
+    "infty": "∞",
+    "partial": "∂",
+    "nabla": "∇",
+    "ell": "ℓ",
+    "hbar": "ℏ",
+    "in": "∈",
+    "notin": "∉",
+    "subset": "⊂",
+    "supset": "⊃",
+    "cup": "∪",
+    "cap": "∩",
+    "prime": "′",
+}
+
+LATEX_ACCENTS = {
+    "tilde": "\u0303",
+    "widetilde": "\u0303",
+    "hat": "\u0302",
+    "widehat": "\u0302",
+    "bar": "\u0305",
+    "overline": "\u0305",
+    "dot": "\u0307",
+    "vec": "\u20d7",
+}
+
+LATEX_FRAGMENT_PATTERN = re.compile(
+    r"(\$\$(.+?)\$\$|\\\[(.+?)\\\]|\\\((.+?)\\\)|(?<!\\)(?<!\$)\$(?!\$)(.+?)(?<!\\)\$(?!\$))",
+    re.DOTALL,
+)
+
+SPACED_LATEX_SYMBOLS = {
+    "to",
+    "rightarrow",
+    "longrightarrow",
+    "leftarrow",
+    "leftrightarrow",
+    "Rightarrow",
+    "Leftarrow",
+    "Leftrightarrow",
+    "mapsto",
+    "times",
+    "cdot",
+    "pm",
+    "mp",
+    "le",
+    "leq",
+    "ge",
+    "geq",
+    "ne",
+    "neq",
+    "approx",
+    "sim",
+    "simeq",
+    "equiv",
+    "propto",
+    "in",
+    "notin",
+    "subset",
+    "supset",
+    "cup",
+    "cap",
+}
+
+
 class ArxivSecretaryApp:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
@@ -41,6 +174,14 @@ class ArxivSecretaryApp:
         self.storage = Storage(database_path())
         self.executor = ThreadPoolExecutor(max_workers=4)
         self.queue: Queue[tuple[str, object]] = Queue()
+        self.details_math_images: list[tk.PhotoImage] = []
+        self.current_details_paper: Paper | None = None
+        try:
+            stored_math_size = int(self.storage.get_setting("math_font_size", "16"))
+        except ValueError:
+            stored_math_size = 16
+        self.math_font_size = max(10, min(24, stored_math_size))
+        self.math_size_text = tk.StringVar(value=f"Reaction {self.math_font_size}")
 
         self.watch_items: list[WatchItem] = []
         self.results: list[Paper] = []
@@ -146,6 +287,10 @@ class ArxivSecretaryApp:
                 "secondary": "#3a3a3a",
                 "secondary_active": "#484848",
                 "secondary_text": "#f3f3f3",
+                "button_bg": "#303030",
+                "button_active": "#454545",
+                "button_pressed": "#555555",
+                "button_disabled": "#292929",
                 "tree_heading_bg": "#3a3a3a",
                 "tree_heading_text": "#f3f3f3",
                 "selected_bg": "#264f78",
@@ -168,6 +313,10 @@ class ArxivSecretaryApp:
                 "secondary": "#dfb96b",
                 "secondary_active": "#ccab5c",
                 "secondary_text": "#2d2418",
+                "button_bg": "#fffaf1",
+                "button_active": "#eadbc5",
+                "button_pressed": "#ddc7a7",
+                "button_disabled": "#ede5d7",
                 "tree_heading_bg": "#e9dbc5",
                 "tree_heading_text": "#45392d",
                 "selected_bg": "#cde4d6",
@@ -205,6 +354,34 @@ class ArxivSecretaryApp:
             font=("{Segoe UI}", 11, "bold"),
         )
         style.configure(
+            "TButton",
+            background=colors["button_bg"],
+            foreground=colors["text"],
+            bordercolor=colors["border"],
+            lightcolor=colors["border"],
+            darkcolor=colors["border"],
+            focuscolor="none",
+            padding=(8, 4),
+        )
+        style.map(
+            "TButton",
+            background=[
+                ("disabled", colors["button_disabled"]),
+                ("pressed", colors["button_pressed"]),
+                ("active", colors["button_active"]),
+            ],
+            foreground=[
+                ("disabled", colors["disabled"]),
+                ("pressed", colors["text"]),
+                ("active", colors["text"]),
+            ],
+            bordercolor=[
+                ("disabled", colors["border"]),
+                ("pressed", colors["accent"]),
+                ("active", colors["accent"]),
+            ],
+        )
+        style.configure(
             "Accent.TButton",
             background=colors["accent"],
             foreground="#ffffff",
@@ -222,7 +399,6 @@ class ArxivSecretaryApp:
             padding=(8, 4),
         )
         style.map("Secondary.TButton", background=[("active", colors["secondary_active"])])
-        style.configure("TButton", padding=(8, 4), focuscolor="none")
         style.configure(
             "TEntry",
             fieldbackground=colors["field_bg"],
@@ -417,6 +593,8 @@ class ArxivSecretaryApp:
             self.abstract_button.configure(image=self.button_icons["abstract"])
         if hasattr(self, "pdf_button"):
             self.pdf_button.configure(image=self.button_icons["pdf"])
+        if hasattr(self, "details_text") and self.current_details_paper is not None:
+            self._show_paper_details(self.current_details_paper)
 
     def _build_layout(self) -> None:
         outer = ttk.Frame(self.root, padding=18)
@@ -629,6 +807,15 @@ class ArxivSecretaryApp:
         detail_card.rowconfigure(1, weight=1)
 
         ttk.Label(detail_card, text="Paper Details", style="Section.TLabel").grid(row=0, column=0, sticky="w", pady=(0, 8))
+        math_size_controls = ttk.Frame(detail_card, style="Panel.TFrame")
+        math_size_controls.grid(row=0, column=1, sticky="e", pady=(0, 8))
+        ttk.Label(math_size_controls, textvariable=self.math_size_text, style="PanelMuted.TLabel").grid(
+            row=0, column=0, padx=(0, 5)
+        )
+        ttk.Button(math_size_controls, text="−", width=2, command=lambda: self._change_math_size(-1)).grid(
+            row=0, column=1, padx=(0, 3)
+        )
+        ttk.Button(math_size_controls, text="+", width=2, command=lambda: self._change_math_size(1)).grid(row=0, column=2)
         self.details_text = tk.Text(
             detail_card,
             relief="solid",
@@ -640,8 +827,52 @@ class ArxivSecretaryApp:
             foreground=self.colors["text"],
             insertbackground=self.colors["text"],
         )
-        self.details_text.grid(row=1, column=0, sticky="nsew")
+        self.details_text.grid(row=1, column=0, columnspan=2, sticky="nsew")
+        self.details_text.tag_configure("display_math", justify="center", spacing1=4, spacing3=4)
+        self._configure_details_math_tags()
         self.details_text.configure(state="disabled")
+
+    def _configure_details_math_tags(self) -> None:
+        self.details_text.tag_configure("math", font=("Cambria", 11, "italic"))
+        self.details_text.tag_configure("math_roman", font=("Cambria", 11))
+        self.details_text.tag_configure("math_sub", font=("Cambria", 8, "italic"), offset=-3)
+        self.details_text.tag_configure("math_sub_roman", font=("Cambria", 8), offset=-3)
+        self.details_text.tag_configure("math_sup", font=("Cambria", 8, "italic"), offset=4)
+        self.details_text.tag_configure("math_sup_roman", font=("Cambria", 8), offset=4)
+
+        script_size = max(8, self.math_font_size - 3)
+        subscript_offset = -max(3, self.math_font_size // 4)
+        superscript_offset = max(4, self.math_font_size // 3)
+        self.details_text.tag_configure(
+            "reaction_math", font=("Cambria", self.math_font_size, "italic")
+        )
+        self.details_text.tag_configure("reaction_math_roman", font=("Cambria", self.math_font_size))
+        self.details_text.tag_configure(
+            "reaction_math_sub", font=("Cambria", script_size, "italic"), offset=subscript_offset
+        )
+        self.details_text.tag_configure(
+            "reaction_math_sub_roman", font=("Cambria", script_size), offset=subscript_offset
+        )
+        self.details_text.tag_configure(
+            "reaction_math_sup", font=("Cambria", script_size, "italic"), offset=superscript_offset
+        )
+        self.details_text.tag_configure(
+            "reaction_math_sup_roman", font=("Cambria", script_size), offset=superscript_offset
+        )
+
+    def _change_math_size(self, delta: int) -> None:
+        new_size = max(10, min(24, self.math_font_size + delta))
+        if new_size == self.math_font_size:
+            return
+        self.math_font_size = new_size
+        self.math_size_text.set(f"Reaction {new_size}")
+        self._configure_details_math_tags()
+        if self.current_details_paper is not None:
+            self._show_paper_details(self.current_details_paper)
+        try:
+            self.storage.set_setting("math_font_size", str(new_size))
+        except (OSError, sqlite3.Error):
+            pass
 
     def _build_ai_summary_panel(self, parent: ttk.Frame) -> None:
         panel = ttk.Frame(parent, style="Panel.TFrame", padding=16)
@@ -1647,7 +1878,7 @@ class ArxivSecretaryApp:
                 "",
                 "end",
                 iid=paper.entry_id,
-                values=(published, paper.title, matches, paper.short_authors),
+                values=(published, self._plain_text_with_math(paper.title), matches, paper.short_authors),
             )
         if selected_id in self.result_index:
             self.results_tree.selection_set(selected_id)
@@ -1700,8 +1931,9 @@ class ArxivSecretaryApp:
             self._show_paper_details(paper)
 
     def _show_paper_details(self, paper: Paper) -> None:
+        self.current_details_paper = paper
         details = [
-            paper.title,
+            self._plain_text_with_math(paper.title),
             "",
             f"Published: {self._format_datetime(paper.published)}",
             f"Updated:   {self._format_datetime(paper.updated)}",
@@ -1712,23 +1944,243 @@ class ArxivSecretaryApp:
         ]
         if paper.comment:
             details.extend(["", f"Comment: {paper.comment}"])
-        details.extend(
-            [
-                "",
-                "Abstract",
-                paper.summary or "No abstract available.",
-                "",
-                f"Abstract URL: {paper.abstract_url}",
-                f"PDF URL:      {paper.pdf_url or 'Unavailable'}",
-            ]
-        )
-        self._set_details_text("\n".join(details))
 
-    def _set_details_text(self, content: str) -> None:
         self.details_text.configure(state="normal")
         self.details_text.delete("1.0", "end")
+        self.details_math_images.clear()
+        self.details_text.insert("end", "\n".join(details))
+        self.details_text.insert("end", "\n\nAbstract\n")
+        self._insert_latex_text(paper.summary or "No abstract available.")
+        self.details_text.insert(
+            "end",
+            f"\n\nAbstract URL: {paper.abstract_url}\nPDF URL:      {paper.pdf_url or 'Unavailable'}",
+        )
+        self.details_text.configure(state="disabled")
+
+    def _set_details_text(self, content: str) -> None:
+        self.current_details_paper = None
+        self.details_text.configure(state="normal")
+        self.details_text.delete("1.0", "end")
+        self.details_math_images.clear()
         self.details_text.insert("1.0", content)
         self.details_text.configure(state="disabled")
+
+    def _insert_latex_text(self, content: str) -> None:
+        cursor = 0
+        for match in LATEX_FRAGMENT_PATTERN.finditer(content):
+            self.details_text.insert("end", content[cursor : match.start()])
+            expression = next(group for group in match.groups()[1:] if group is not None)
+            display = match.group(0).startswith(("$$", r"\["))
+            rendered = not display and self._insert_simple_math(expression)
+            if not rendered:
+                rendered = self._insert_math_image(expression, display=display)
+            if not rendered:
+                self.details_text.insert("end", match.group(0))
+            cursor = match.end()
+        self.details_text.insert("end", content[cursor:])
+
+    def _plain_text_with_math(self, content: str) -> str:
+        content = html.unescape(content)
+        parts: list[str] = []
+        cursor = 0
+        for match in LATEX_FRAGMENT_PATTERN.finditer(content):
+            parts.append(content[cursor : match.start()])
+            expression = next(group for group in match.groups()[1:] if group is not None)
+            try:
+                tokens, position = self._parse_simple_math(expression, 0)
+                replacement = "".join(text for text, _style in tokens) if position == len(expression) else expression
+            except ValueError:
+                replacement = expression
+            parts.append(replacement)
+            cursor = match.end()
+        parts.append(content[cursor:])
+        return re.sub(r"\s+", " ", "".join(parts)).strip()
+
+    def _insert_simple_math(self, expression: str) -> bool:
+        try:
+            tokens, position = self._parse_simple_math(expression, 0)
+            if position != len(expression):
+                return False
+        except ValueError:
+            return False
+
+        reaction = self._is_reaction_expression(expression)
+        for text, style in tokens:
+            tag = f"reaction_{style}" if reaction else style
+            self.details_text.insert("end", text, (tag,))
+        return bool(tokens)
+
+    def _is_reaction_expression(self, expression: str) -> bool:
+        return "→" in expression or bool(
+            re.search(r"\\(?:to|rightarrow|longrightarrow|mapsto)\b", expression)
+        )
+
+    def _parse_simple_math(
+        self,
+        expression: str,
+        position: int,
+        *,
+        stop_at_brace: bool = False,
+    ) -> tuple[list[tuple[str, str]], int]:
+        tokens: list[tuple[str, str]] = []
+        while position < len(expression):
+            character = expression[position]
+            if character == "}":
+                if not stop_at_brace:
+                    raise ValueError("Unexpected closing brace")
+                return tokens, position + 1
+            if character in "_^":
+                script_style = "math_sub" if character == "_" else "math_sup"
+                argument, position = self._parse_math_atom(expression, position + 1)
+                for text, style in argument:
+                    if style in {"math_sub", "math_sup", "math_sub_roman", "math_sup_roman"}:
+                        raise ValueError("Nested scripts require full math rendering")
+                    suffix = "_roman" if style == "math_roman" else ""
+                    tokens.append((text.replace("-", "−"), script_style + suffix))
+                continue
+            if character == "{":
+                group, position = self._parse_simple_math(expression, position + 1, stop_at_brace=True)
+                tokens.extend(group)
+                continue
+            if character == "\\":
+                command_tokens, position = self._parse_math_command(expression, position + 1)
+                tokens.extend(command_tokens)
+                continue
+
+            if character == "~":
+                tokens.append(("\u00a0", "math"))
+            elif character == "\n":
+                tokens.append((" ", "math"))
+            elif character in "+=<>":
+                tokens.append((f"\u200a{character}\u200a", "math"))
+            else:
+                tokens.append(("−" if character == "-" else character, "math"))
+            position += 1
+
+        if stop_at_brace:
+            raise ValueError("Unclosed group")
+        return tokens, position
+
+    def _parse_math_atom(self, expression: str, position: int) -> tuple[list[tuple[str, str]], int]:
+        if position >= len(expression):
+            raise ValueError("Missing script argument")
+        if expression[position] == "{":
+            return self._parse_simple_math(expression, position + 1, stop_at_brace=True)
+        if expression[position] == "\\":
+            return self._parse_math_command(expression, position + 1)
+        return [(("−" if expression[position] == "-" else expression[position]), "math")], position + 1
+
+    def _parse_math_command(self, expression: str, position: int) -> tuple[list[tuple[str, str]], int]:
+        command_start = position
+        while position < len(expression) and expression[position].isalpha():
+            position += 1
+        if command_start == position:
+            if position >= len(expression):
+                raise ValueError("Incomplete command")
+            command = expression[position]
+            position += 1
+        else:
+            command = expression[command_start:position]
+
+        if command in LATEX_SYMBOLS:
+            symbol = LATEX_SYMBOLS[command]
+            if command in SPACED_LATEX_SYMBOLS:
+                symbol = f"\u200a{symbol}\u200a"
+            return [(symbol, "math")], position
+        if command in {",", ";", ":", " ", "quad", "qquad"}:
+            return [("  " if command in {"quad", "qquad"} else " ", "math")], position
+        if command == "!":
+            return [], position
+        if command in {"left", "right"}:
+            return [], position
+        if command in {"{", "}", "%", "_", "#", "$", "&"}:
+            return [(command, "math")], position
+
+        if command in {"mathrm", "textrm", "text", "operatorname"}:
+            group, position = self._parse_required_math_group(expression, position)
+            roman_styles = {
+                "math": "math_roman",
+                "math_sub": "math_sub_roman",
+                "math_sup": "math_sup_roman",
+            }
+            return [(text, roman_styles.get(style, style)) for text, style in group], position
+        if command in {"mathbf", "boldsymbol", "mathit"}:
+            return self._parse_required_math_group(expression, position)
+        if command == "sqrt":
+            group, position = self._parse_required_math_group(expression, position)
+            if any(style.startswith(("math_sub", "math_sup")) for _, style in group):
+                raise ValueError("Complex root requires full math rendering")
+            return [("√", "math"), *group], position
+        if command in LATEX_ACCENTS:
+            group, position = self._parse_required_math_group(expression, position)
+            if len(group) != 1 or group[0][1] not in {"math", "math_roman"}:
+                raise ValueError("Complex accent requires full math rendering")
+            text, style = group[0]
+            if not text:
+                raise ValueError("Empty accent")
+            return [(text + LATEX_ACCENTS[command], style)], position
+
+        raise ValueError(f"Unsupported command: {command}")
+
+    def _parse_required_math_group(
+        self,
+        expression: str,
+        position: int,
+    ) -> tuple[list[tuple[str, str]], int]:
+        while position < len(expression) and expression[position].isspace():
+            position += 1
+        if position >= len(expression) or expression[position] != "{":
+            raise ValueError("Command requires a group")
+        return self._parse_simple_math(expression, position + 1, stop_at_brace=True)
+
+    def _insert_math_image(self, expression: str, *, display: bool) -> bool:
+        try:
+            from matplotlib import rc_context
+            from matplotlib.font_manager import FontProperties
+            from matplotlib.mathtext import math_to_image
+
+            buffer = BytesIO()
+            background = self.colors["field_bg"]
+            with rc_context(
+                {
+                    "figure.facecolor": background,
+                    "savefig.facecolor": background,
+                    "savefig.edgecolor": background,
+                    "savefig.transparent": False,
+                    "mathtext.fontset": "stix",
+                    "mathtext.default": "it",
+                }
+            ):
+                math_to_image(
+                    f"${expression.strip()}$",
+                    buffer,
+                    prop=FontProperties(
+                        size=max(11, round(self.math_font_size * 0.9))
+                        if display
+                        else (
+                            max(9, round(self.math_font_size * 0.75))
+                            if self._is_reaction_expression(expression)
+                            else 9
+                        )
+                    ),
+                    dpi=96,
+                    format="png",
+                    color=self.colors["text"],
+                )
+            image = tk.PhotoImage(data=base64.b64encode(buffer.getvalue()))
+        except Exception:
+            return False
+
+        self.details_math_images.append(image)
+        if display:
+            if self.details_text.index("end-1c linestart") != self.details_text.index("end-1c"):
+                self.details_text.insert("end", "\n")
+            self.details_text.image_create("end", image=image, align="center", padx=4, pady=3)
+            self.details_text.tag_add("display_math", "end-2c linestart", "end-1c lineend")
+            self.details_text.insert("end", "\n")
+        else:
+            self.details_text.image_create("end", image=image, align="center", padx=1)
+        return True
 
     def _set_ai_summary_text(self, content: str) -> None:
         self.ai_summary_text.configure(state="normal")
@@ -1795,10 +2247,11 @@ class ArxivSecretaryApp:
             return
         webbrowser.open(paper.pdf_url)
 
-    def _selected_paper(self) -> Paper | None:
+    def _selected_paper(self, *, show_message: bool = True) -> Paper | None:
         selection = self.results_tree.selection()
         if not selection:
-            messagebox.showinfo("Select a paper", "Choose a paper from the results list first.")
+            if show_message:
+                messagebox.showinfo("Select a paper", "Choose a paper from the results list first.")
             return None
         return self.result_index.get(selection[0])
 

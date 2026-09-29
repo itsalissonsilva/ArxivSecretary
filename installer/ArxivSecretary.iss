@@ -1,5 +1,5 @@
 #define MyAppName "ArxivSecretary"
-#define MyAppVersion "0.1.1"
+#define MyAppVersion "0.1.2"
 #define MyAppPublisher "itsalissonsilva"
 #define MyAppURL "https://github.com/itsalissonsilva/ArxivSecretary"
 #define MyAppExeName "ArxivSecretary.exe"

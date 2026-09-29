@@ -30,6 +30,7 @@ ArXiv Secretary helps researchers stay on top of the papers that matter to them 
 - Track arXiv authors, topics, and institution keywords
 - Review papers in `Latest` and `Daily` feed modes
 - Open abstracts and PDFs directly from the app
+- Render common LaTeX notation directly in paper details
 - Generate AI summaries with OpenAI or Anthropic
 - Configure desktop and email alerts
 - Schedule update checks daily, weekly, or monthly
@@ -51,6 +52,7 @@ ArXiv Secretary helps researchers stay on top of the papers that matter to them 
 ```powershell
 git clone https://github.com/itsalissonsilva/ArxivSecretary.git
 cd ArxivSecretary
+python -m pip install -r requirements.txt
 python main.py
 ```
 

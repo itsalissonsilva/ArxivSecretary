@@ -12,6 +12,7 @@ build3/
 dist/
 dist2/
 dist3/
+test-build/
 installer-output/
 release/
 
